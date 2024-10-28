@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import task_manager_back.task_manager_back.dto.TaskDto;
 import task_manager_back.task_manager_back.exception.TaskExceptions;
+import task_manager_back.task_manager_back.exception.UserExceptions;
 import task_manager_back.task_manager_back.model.StateTask;
 import task_manager_back.task_manager_back.model.Task;
 import task_manager_back.task_manager_back.model.User;
@@ -30,7 +31,7 @@ public class TaskService {
     @Autowired StateTaskRepository stateTaskRepository;
 
     @Transactional
-    public Task createNewTask(TaskDto task, String userEmail){
+    public Task createNewTask(TaskDto task, Long userId){
         Task taskCreate = new Task();
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
@@ -41,8 +42,11 @@ public class TaskService {
         } catch (DateTimeParseException e) {
             throw new TaskExceptions("INVALID_DATE_FORMAT");
         }
+        
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserExceptions("USER_NOT_FOUND: " + userId));
+
         taskCreate.setDescription(task.getDescription());
-        User user = userRepository.findByEmail(userEmail);
         taskCreate.setUser(user);
         StateTask pendingState = stateTaskRepository.findByName("Pending");
         taskCreate.setState(pendingState);
@@ -52,9 +56,17 @@ public class TaskService {
     }
 
     @Transactional
+    public void deleteTask(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskExceptions("TASK_NOT_FOUND" + taskId));
+        
+        taskRepository.delete(task);
+    }
+
+    @Transactional
     public Task updateTaskState(Long taskId, String stateName) {
         Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new IllegalArgumentException("Tarea no encontrada: " + taskId));
+                .orElseThrow(() -> new TaskExceptions("TASK_NOT_FOUND" + taskId));
 
         StateTask newState = stateTaskRepository.findByName(stateName);
         if (newState==null){

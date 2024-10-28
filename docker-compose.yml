@@ -1,0 +1,38 @@
+version: '3.9'
+
+services:
+  mongo-db:
+    image: mongo:latest
+    container_name: mongo-db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=g8fX#9zL!nP2
+    ports:
+      - "27017:27017" # Puerto predeterminado de MongoDB
+    volumes:
+      - mongo_data:/data/db # Volumen para persistencia de datos
+
+  spring-backend:
+    build: 
+      context: ./task-manager-back
+      dockerfile: Dockerfile
+    container_name: task-manager-back
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://root:g8fX#9zL!nP2@mongo-db:27017/task-manager?authSource=admin
+    depends_on:
+      - mongo-db
+    ports:
+      - "8080:8080"
+
+  angular-frontend:
+    build:
+      context: ./task-manager-front
+      dockerfile: Dockerfile
+    container_name: task-manager-front
+    ports:
+      - "4200:80"
+    depends_on:
+      - spring-backend
+
+volumes:
+  mongo_data:

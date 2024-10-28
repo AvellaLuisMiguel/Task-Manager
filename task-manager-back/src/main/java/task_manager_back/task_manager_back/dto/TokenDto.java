@@ -4,9 +4,9 @@ import lombok.Data;
 
 @Data
 public class TokenDto {
-    private String token;
+    private String id;
 
     public TokenDto(String token) {
-        this.token = token;
+        this.id = token;
     }
 }

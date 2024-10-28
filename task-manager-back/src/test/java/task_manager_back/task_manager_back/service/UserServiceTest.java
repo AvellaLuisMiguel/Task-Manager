@@ -1,10 +1,10 @@
 package task_manager_back.task_manager_back.service;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Collections;
-import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,66 +13,96 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import task_manager_back.task_manager_back.dto.UserCreateDto;
+import task_manager_back.task_manager_back.exception.AuthExceptions;
 import task_manager_back.task_manager_back.exception.UserExceptions;
-import task_manager_back.task_manager_back.model.Task;
+
 import task_manager_back.task_manager_back.model.User;
 import task_manager_back.task_manager_back.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 public class UserServiceTest {
 
-    @Mock
-    private UserRepository userRepository;
-
     @InjectMocks
     private UserService userService;
 
+    @Mock
+    private UserRepository userRepository;
+
+    private UserCreateDto userCreateDto;
     private User user;
 
     @BeforeEach
-    void setUp() {
+    public void setUp() {
+        userCreateDto = new UserCreateDto();
+        userCreateDto.setName("Test User");
+        userCreateDto.setEmail("test@example.com");
+        userCreateDto.setPassword("password");
+
         user = new User();
-        user.setEmail("test@example.com");
+        user.setId(1L);
         user.setName("Test User");
-        Task task = new Task();
-        task.setDescription("Example Task");
-        user.setTasks(Collections.singletonList(task));
+        user.setEmail("test@example.com");
+        user.setPassword("password");
+        user.setTasks(Collections.emptyList());
     }
 
     @Test
-    void testGetUserByEmail_Success() {
-        when(userRepository.findByEmail("test@example.com")).thenReturn(user);
+    public void testCreateUser_Success() {
+        when(userRepository.findByEmail(userCreateDto.getEmail())).thenReturn(null);
+        when(userRepository.save(any(User.class))).thenReturn(user);
 
-        User result = userService.getUserByEmail("test@example.com");
+        User createdUser = userService.createUser(userCreateDto);
 
-        assertNotNull(result);
-        assertEquals("test@example.com", result.getEmail());
-        assertEquals("Test User", result.getName());
-        verify(userRepository, times(1)).findByEmail("test@example.com");
+        assertNotNull(createdUser);
+        assertEquals("Test User", createdUser.getName());
+        assertEquals("test@example.com", createdUser.getEmail());
+        verify(userRepository).save(any(User.class));
     }
 
     @Test
-    void testGetUserByEmail_UserNotFound() {
-        when(userRepository.findByEmail("notfound@example.com")).thenReturn(null);
+    public void testCreateUser_EmailAlreadyExists() {
+        when(userRepository.findByEmail(userCreateDto.getEmail())).thenReturn(user);
 
-        UserExceptions exception = assertThrows(UserExceptions.class, () -> {
-            userService.getUserByEmail("notfound@example.com");
+        AuthExceptions thrown = assertThrows(AuthExceptions.class, () -> {
+            userService.createUser(userCreateDto);
         });
 
-        assertEquals("USER_DONT_FOUND", exception.getMessage());
-        verify(userRepository, times(1)).findByEmail("notfound@example.com");
+        assertEquals("EMAIL_DONT_AVALIABLE", thrown.getMessage());
     }
 
     @Test
-    void testGetTasks_Success() {
+    public void testGetUserByEmail_Success() {
         when(userRepository.findByEmail("test@example.com")).thenReturn(user);
 
-        List<Task> tasks = userService.getTasks("test@example.com");
+        User foundUser = userService.getUserByEmail("test@example.com");
 
-        assertNotNull(tasks);
-        assertEquals(1, tasks.size());
-        assertEquals("Example Task", tasks.get(0).getDescription());
-        verify(userRepository, times(1)).findByEmail("test@example.com");
+        assertNotNull(foundUser);
+        assertEquals("Test User", foundUser.getName());
+        verify(userRepository).findByEmail("test@example.com");
     }
 
+    @Test
+    public void testGetUserByEmail_UserNotFound() {
+        when(userRepository.findByEmail("nonexistent@example.com")).thenReturn(null);
+
+        UserExceptions thrown = assertThrows(UserExceptions.class, () -> {
+            userService.getUserByEmail("nonexistent@example.com");
+        });
+
+        assertEquals("USER_DONT_FOUND", thrown.getMessage());
+    }
+
+
+
+    @Test
+    public void testGetTasks_UserNotFound() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        UserExceptions thrown = assertThrows(UserExceptions.class, () -> {
+            userService.getTasks(1L);
+        });
+
+        assertEquals("USER_DONT_FOUND1", thrown.getMessage());
+    }
 }

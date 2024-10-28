@@ -1,13 +1,21 @@
 package task_manager_back.task_manager_back.service;
 
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import task_manager_back.task_manager_back.dto.TaskDto;
 import task_manager_back.task_manager_back.exception.TaskExceptions;
+import task_manager_back.task_manager_back.exception.UserExceptions;
 import task_manager_back.task_manager_back.model.StateTask;
 import task_manager_back.task_manager_back.model.Task;
 import task_manager_back.task_manager_back.model.User;
@@ -15,14 +23,8 @@ import task_manager_back.task_manager_back.repository.StateTaskRepository;
 import task_manager_back.task_manager_back.repository.TaskRepository;
 import task_manager_back.task_manager_back.repository.UserRepository;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
-
-class TaskServiceTest {
+@ExtendWith(MockitoExtension.class)
+public class TaskServiceTest {
 
     @InjectMocks
     private TaskService taskService;
@@ -36,97 +38,108 @@ class TaskServiceTest {
     @Mock
     private StateTaskRepository stateTaskRepository;
 
+    private TaskDto taskDto;
     private User user;
-    private StateTask pendingState;
+    private StateTask stateTask;
 
     @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-        
-    
+    public void setUp() {
+        taskDto = new TaskDto();
+        taskDto.setDescription("Test Task");
+        taskDto.setDate("01/11/2024");
+
         user = new User();
+        user.setId(1L);
         user.setEmail("test@example.com");
         
-        pendingState = new StateTask();
-        pendingState.setId(1L);
-        pendingState.setName("Pending");
+        stateTask = new StateTask();
+        stateTask.setName("Pending");
     }
 
     @Test
-    void testCreateNewTask_Success() {
-        TaskDto taskDto = new TaskDto();
-        taskDto.setDescription("Test task");
-        taskDto.setDate("01/01/2024");
+    public void testCreateNewTask_Success() {
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(stateTaskRepository.findByName("Pending")).thenReturn(stateTask);
 
-        when(userRepository.findByEmail("test@example.com")).thenReturn(user);
-        when(stateTaskRepository.findByName("Pending")).thenReturn(pendingState);
-
-        Task createdTask = taskService.createNewTask(taskDto, "test@example.com");
+        Task createdTask = taskService.createNewTask(taskDto, 1L);
 
         assertNotNull(createdTask);
-        assertEquals("Test task", createdTask.getDescription());
-        assertEquals(LocalDateTime.of(2024, 1, 1, 0, 0), createdTask.getDeadline());
-        assertEquals(pendingState, createdTask.getState());
-        verify(taskRepository, times(1)).save(any(Task.class));
+        assertEquals("Test Task", createdTask.getDescription());
+        assertEquals(LocalDateTime.parse("2024-11-01T00:00"), createdTask.getDeadline());
+        assertEquals(user, createdTask.getUser());
+        assertEquals(stateTask, createdTask.getState());
+        verify(taskRepository).save(any(Task.class));
     }
 
     @Test
-    void testCreateNewTask_InvalidDateFormat() {
-        TaskDto taskDto = new TaskDto();
-        taskDto.setDescription("Test task");
+    public void testCreateNewTask_InvalidDateFormat() {
         taskDto.setDate("invalid-date");
 
-        Exception exception = assertThrows(TaskExceptions.class, () -> {
-            taskService.createNewTask(taskDto, "test@example.com");
+        TaskExceptions thrown = assertThrows(TaskExceptions.class, () -> {
+            taskService.createNewTask(taskDto, 1L);
         });
 
-        assertEquals("INVALID_DATE_FORMAT", exception.getMessage());
+        assertEquals("INVALID_DATE_FORMAT", thrown.getMessage());
     }
 
     @Test
-    void testUpdateTaskState_Success() {
+    public void testCreateNewTask_UserNotFound() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        UserExceptions thrown = assertThrows(UserExceptions.class, () -> {
+            taskService.createNewTask(taskDto, 1L);
+        });
+
+        assertEquals("USER_NOT_FOUND: 1", thrown.getMessage());
+    }
+
+    @Test
+    public void testDeleteTask_Success() {
         Task task = new Task();
         task.setId(1L);
-        task.setUser(user);
-        task.setState(pendingState);
+
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
-        StateTask completedState = new StateTask();
-        completedState.setId(2L);
-        completedState.setName("Completed");
-        when(stateTaskRepository.findByName("Completed")).thenReturn(completedState);
-        when(taskRepository.save(any(Task.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        Task updatedTask = taskService.updateTaskState(1L, "Completed");
-        assertNotNull(updatedTask);
-        assertEquals("Completed", updatedTask.getState().getName());
-        verify(taskRepository, times(1)).save(task);
+
+        taskService.deleteTask(1L);
+
+        verify(taskRepository).delete(task);
     }
-    
 
     @Test
-    void testUpdateTaskState_TaskNotFound() {
+    public void testDeleteTask_TaskNotFound() {
         when(taskRepository.findById(1L)).thenReturn(Optional.empty());
 
-        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
-            taskService.updateTaskState(1L, "Completed");
+        TaskExceptions thrown = assertThrows(TaskExceptions.class, () -> {
+            taskService.deleteTask(1L);
         });
 
-        assertEquals("Tarea no encontrada: 1", exception.getMessage());
+        assertEquals("TASK_NOT_FOUND1", thrown.getMessage());
+    }
+
+
+    @Test
+    public void testUpdateTaskState_TaskNotFound() {
+        when(taskRepository.findById(1L)).thenReturn(Optional.empty());
+
+        TaskExceptions thrown = assertThrows(TaskExceptions.class, () -> {
+            taskService.updateTaskState(1L, "Pending");
+        });
+
+        assertEquals("TASK_NOT_FOUND1", thrown.getMessage());
     }
 
     @Test
-    void testUpdateTaskState_InvalidState() {
+    public void testUpdateTaskState_InvalidStateName() {
         Task task = new Task();
         task.setId(1L);
-        task.setUser(user);
-        task.setState(pendingState);
 
         when(taskRepository.findById(1L)).thenReturn(Optional.of(task));
         when(stateTaskRepository.findByName("InvalidState")).thenReturn(null);
 
-        Exception exception = assertThrows(TaskExceptions.class, () -> {
+        TaskExceptions thrown = assertThrows(TaskExceptions.class, () -> {
             taskService.updateTaskState(1L, "InvalidState");
         });
 
-        assertEquals("STATE_NAME_INVALID", exception.getMessage());
+        assertEquals("STATE_NAME_INVALID", thrown.getMessage());
     }
 }

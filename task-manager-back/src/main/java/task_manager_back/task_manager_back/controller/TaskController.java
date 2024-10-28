@@ -3,8 +3,7 @@ package task_manager_back.task_manager_back.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+
 import org.springframework.web.bind.annotation.*;
 
 import task_manager_back.task_manager_back.dto.TaskDto;
@@ -21,16 +20,20 @@ public class TaskController {
     @Autowired
     private TaskService taskService;
     
-    @PostMapping("/")
-    public ResponseEntity<?> createTask(@RequestBody TaskDto task) {
+    @PostMapping("/{idUser}")
+    public ResponseEntity<?> createTask(@PathVariable Long idUser,@RequestBody TaskDto task) {
         try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String email = authentication.getName();
-            Task newTask = taskService.createNewTask(task,email);
+            Task newTask=taskService.createNewTask(task, idUser);
             return ResponseEntity.status(HttpStatus.CREATED).body(newTask);
         }  catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
+    }
+
+    @DeleteMapping("/{taskId}")
+    public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
+        taskService.deleteTask(taskId);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @PutMapping("/{taskId}/state/{stateName}")
