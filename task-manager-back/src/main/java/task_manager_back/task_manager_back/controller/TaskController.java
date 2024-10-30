@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import task_manager_back.task_manager_back.dto.TaskDto;
+import task_manager_back.task_manager_back.exception.TaskExceptions;
 import task_manager_back.task_manager_back.model.Task;
 import task_manager_back.task_manager_back.service.TaskService;
 
@@ -29,6 +30,16 @@ public class TaskController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
+    
+    @GetMapping("/{taskId}")
+    public ResponseEntity<?> getTaskById(@PathVariable Long taskId) {
+        try {
+            Task task = taskService.getTaskById(taskId);
+            return ResponseEntity.ok(task);
+        } catch (TaskExceptions e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
 
     @DeleteMapping("/{taskId}")
     public ResponseEntity<Void> deleteTask(@PathVariable Long taskId) {
@@ -45,5 +56,14 @@ public class TaskController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
-    
+
+    @PutMapping("/{taskId}")
+    public ResponseEntity<?> updateTask(@PathVariable Long taskId, @RequestBody TaskDto taskDto) {
+        try {
+            Task updatedTask = taskService.updateTask(taskId, taskDto);
+            return ResponseEntity.status(HttpStatus.OK).body(updatedTask);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
 }

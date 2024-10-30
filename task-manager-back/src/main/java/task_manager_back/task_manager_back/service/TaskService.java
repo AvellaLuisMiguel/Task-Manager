@@ -56,6 +56,12 @@ public class TaskService {
     }
 
     @Transactional
+    public Task getTaskById(Long taskId) {
+        return taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskExceptions("TASK_NOT_FOUND: " + taskId));
+    }
+
+    @Transactional
     public void deleteTask(Long taskId) {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskExceptions("TASK_NOT_FOUND" + taskId));
@@ -76,4 +82,22 @@ public class TaskService {
         task.setState(newState); 
         return taskRepository.save(task);
     }
+    @Transactional
+    public Task updateTask(Long taskId, TaskDto taskDto) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskExceptions("TASK_NOT_FOUND: " + taskId));
+        task.setDescription(taskDto.getDescription());
+        if (taskDto.getDate() != null) {
+            DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            try {
+                LocalDate localDate = LocalDate.parse(taskDto.getDate(), dateFormatter);
+                LocalDateTime dateTime = localDate.atStartOfDay(); 
+                task.setDeadline(dateTime);
+            } catch (DateTimeParseException e) {
+                throw new TaskExceptions("INVALID_DATE_FORMAT");
+            }
+        }
+        return taskRepository.save(task);
+    }
+
 }
